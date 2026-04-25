@@ -139,14 +139,19 @@ function spin(){
   requestAnimationFrame(anim);
 }
 
-function showResult(g){
+async function showResult(g){
+  const res = await fetch(`/api/steam?name=${encodeURIComponent(g.name)}`);
+  const steam = await res.json();
+
   document.getElementById("result").innerHTML=`
     <div class="result">
-      <img src="${g.img}">
+      <img src="${steam.img}">
       <div>
-        <h2>${g.name}</h2>
+        <h2>${steam.name}</h2>
         <p>${g.info}</p>
-        <p>${g.price}</p>
+        <a href="https://store.steampowered.com/app/${steam.appid}" target="_blank">
+          View on Steam
+        </a>
       </div>
     </div>
   `;
