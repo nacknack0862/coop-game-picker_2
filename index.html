@@ -3,54 +3,28 @@
 <head>
 <meta charset="UTF-8" />
 <title>Co-op Game Picker</title>
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
 <style>
 *{box-sizing:border-box}
 body{
   margin:0;
   font-family:'Inter',sans-serif;
-  background:linear-gradient(180deg,#0f0f14,#1a1b22);
+  background:#0f1117;
   color:white;
+  text-align:center;
 }
-
 .container{
   max-width:900px;
   margin:auto;
-  padding:40px 20px;
+  padding:30px 20px;
 }
-
-h1{
-  font-weight:800;
-  font-size:42px;
-  margin-bottom:30px;
+h1{font-size:42px;margin-bottom:20px}
+canvas{
+  margin-top:20px;
 }
-
-.card{
-  background:#1f212b;
-  border-radius:16px;
-  padding:24px;
-  margin-bottom:20px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.4);
-}
-
-label{
-  font-weight:600;
-}
-
-input{
-  padding:10px;
-  border-radius:8px;
-  border:none;
-  width:80px;
-  font-size:16px;
-  margin-left:10px;
-}
-
 button{
   margin-top:20px;
-  padding:14px 20px;
+  padding:14px 24px;
   font-size:18px;
   font-weight:600;
   border:none;
@@ -58,78 +32,92 @@ button{
   cursor:pointer;
   background:linear-gradient(45deg,#ff4d6d,#ffb703);
   color:black;
-  transition:0.2s;
 }
-
-button:hover{
-  transform:scale(1.05);
-}
-
 .result{
   margin-top:25px;
-  padding:20px;
-  border-radius:14px;
-  background:#272935;
-  display:none;
-  animation:fade 0.3s ease;
-}
-
-@keyframes fade{
-  from{opacity:0; transform:translateY(10px)}
-  to{opacity:1; transform:translateY(0)}
-}
-
-.game-name{
-  font-size:28px;
+  font-size:24px;
   font-weight:800;
-  margin-bottom:10px;
-}
-
-.meta{
-  opacity:0.8;
 }
 </style>
 </head>
 
 <body>
 <div class="container">
-  <h1>🎮 Co-op Game Picker</h1>
+  <h1>🎮 Co-op Game Wheel</h1>
 
-  <div class="card">
-    <label>Minimum Players:
-      <input type="number" id="players" value="2" min="2"/>
-    </label>
-    <br/>
-    <button onclick="spin()">🎡 Spin Random Game</button>
-  </div>
+  <label>Minimum Players:
+    <input type="number" id="players" value="2" min="2" style="padding:8px;border-radius:8px;border:none;margin-left:10px;">
+  </label>
+
+  <br/>
+  <canvas id="wheel" width="500" height="500"></canvas>
+  <br/>
+  <button onclick="spin()">🎡 Spin Wheel</button>
 
   <div id="result" class="result"></div>
 </div>
 
 <script>
 const games = [
-  { name:"Overcooked 2", players:4, price:450, genre:"Party Chaos" },
-  { name:"It Takes Two", players:2, price:990, genre:"Adventure Co-op" },
-  { name:"Phasmophobia", players:4, price:279, genre:"Horror Co-op" },
-  { name:"Left 4 Dead 2", players:4, price:199, genre:"Zombie Shooter" },
-  { name:"Terraria", players:8, price:199, genre:"Sandbox Survival" },
-  { name:"Stardew Valley", players:4, price:315, genre:"Chill Farming" }
+  { name:"Overcooked 2", players:4 },
+  { name:"It Takes Two", players:2 },
+  { name:"Phasmophobia", players:4 },
+  { name:"Left 4 Dead 2", players:4 },
+  { name:"Terraria", players:8 },
+  { name:"Stardew Valley", players:4 }
 ];
+
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+let currentRotation = 0;
+let wheelGames = [];
+
+function drawWheel(){
+  const radius = canvas.width/2;
+  const slice = (2*Math.PI)/wheelGames.length;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  wheelGames.forEach((g,i)=>{
+    const angle = i*slice;
+    ctx.beginPath();
+    ctx.moveTo(radius,radius);
+    ctx.arc(radius,radius,radius,angle,angle+slice);
+    ctx.fillStyle = i%2 ? "#ffb703" : "#ff4d6d";
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(radius,radius);
+    ctx.rotate(angle+slice/2);
+    ctx.fillStyle="black";
+    ctx.font="bold 16px Inter";
+    ctx.fillText(g.name, 40, 5);
+    ctx.restore();
+  });
+}
 
 function spin(){
   const min = parseInt(document.getElementById('players').value);
-  const filtered = games.filter(g => g.players >= min);
-  const pick = filtered[Math.floor(Math.random()*filtered.length)];
+  wheelGames = games.filter(g=>g.players>=min);
 
-  const box = document.getElementById('result');
-  box.style.display='block';
-  box.innerHTML = `
-    <div class="game-name">🎯 ${pick.name}</div>
-    <div class="meta">Players: ${pick.players}</div>
-    <div class="meta">Genre: ${pick.genre}</div>
-    <div class="meta">Price: ${pick.price}฿</div>
-  `;
+  if(wheelGames.length===0) return;
+
+  drawWheel();
+
+  const slice = 360/wheelGames.length;
+  const randomIndex = Math.floor(Math.random()*wheelGames.length);
+  const targetAngle = (360 - randomIndex*slice) + 1440;
+
+  canvas.style.transition="transform 4s cubic-bezier(.17,.67,.83,.67)";
+  canvas.style.transform=`rotate(${targetAngle}deg)`;
+
+  setTimeout(()=>{
+    const picked = wheelGames[randomIndex];
+    document.getElementById("result").innerText = "🎯 " + picked.name;
+  },4000);
 }
+
+drawWheel();
 </script>
 </body>
 </html>
