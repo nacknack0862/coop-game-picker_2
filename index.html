@@ -8,7 +8,7 @@
 body{margin:0;background:#0b0f1a;color:#fff;font-family:Inter;text-align:center}
 h1{margin-top:16px}
 .controls{margin:10px}
-button{margin:6px;padding:10px 18px;border:none;border-radius:8px;font-weight:800;cursor:pointer}
+button{margin:6px;padding:10px 16px;border:none;border-radius:8px;font-weight:800;cursor:pointer}
 canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:10px}
 .result{max-width:900px;margin:20px auto;text-align:left;display:flex;gap:20px;background:#141a28;padding:20px;border-radius:16px}
 .result img{width:260px;border-radius:12px}
@@ -20,7 +20,17 @@ canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:10px}
 
 <div class="controls">
   <button onclick="setMode('deals')">Deals</button>
-  <button onclick="setMode('popular')">Popular This Month</button>
+  <button onclick="setMode('popular')">Popular</button>
+</div>
+
+<div class="controls">
+  <button onclick="setGenre('any')">All</button>
+  <button onclick="setGenre('action')">Action</button>
+  <button onclick="setGenre('horror')">Horror</button>
+  <button onclick="setGenre('survival')">Survival</button>
+  <button onclick="setGenre('party')">Party</button>
+  <button onclick="setGenre('adventure')">Adventure</button>
+  <button onclick="setGenre('chill')">Chill</button>
 </div>
 
 <canvas id="wheel" width="600" height="600"></canvas>
@@ -33,128 +43,144 @@ canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:10px}
 let games=[];
 let rotation=0;
 let mode="deals";
+let genre="any";
 
-function setMode(m){
-  mode=m;
-  loadGames();
+function setMode(m){mode=m;loadGames();}
+function setGenre(g){genre=g;loadGames();}
+
+const genreMap={
+ action:["left 4 dead","killing floor","helldivers","gtfo"],
+ horror:["phasmophobia","devour","demonologist","forewarned"],
+ survival:["raft","forest","valheim","survive","craft"],
+ party:["overcooked","moving out","party","pummel","gang beasts"],
+ adventure:["it takes two","a way out","we were here"],
+ chill:["stardew","farm","simulator","valley"]
+};
+
+function matchGenre(name){
+ if(genre==="any") return true;
+ const n=name.toLowerCase();
+ return genreMap[genre].some(k=>n.includes(k));
 }
 
-/* ---------- LOAD GAMES ---------- */
+/* -------- LOAD GAMES -------- */
 async function loadGames(){
-  if(mode==="deals") await loadDeals();
-  else await loadPopular();
-  drawWheel();
+ if(mode==="deals") await loadDeals();
+ else await loadPopular();
+ drawWheel();
 }
 
-/* Deals from CheapShark */
 async function loadDeals(){
-  let pool=[];
-  for(let p=0;p<4;p++){
-    const r=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&pageSize=60&pageNumber=${p}`);
-    pool=pool.concat(await r.json());
-  }
+ let pool=[];
+ for(let p=0;p<4;p++){
+   const r=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&pageSize=60&pageNumber=${p}`);
+   pool=pool.concat(await r.json());
+ }
 
-  games=pool.slice(0,40).map(g=>({
-    name:g.title,
-    img:g.thumb,
-    info:"Steam Deal",
-    price:"$"+g.salePrice
-  }));
+ games=pool
+   .filter(g=>matchGenre(g.title))
+   .slice(0,40)
+   .map(g=>({
+     name:g.title,
+     img:g.thumb,
+     info:"Steam Deal"
+   }));
 }
 
-/* Popular from SteamCharts */
 async function loadPopular(){
-  const res=await fetch("https://steamcharts.com/top");
-  const html=await res.text();
-  const parser=new DOMParser();
-  const doc=parser.parseFromString(html,"text/html");
-  const rows=[...doc.querySelectorAll(".common-table tbody tr")];
+ const res=await fetch("https://steamcharts.com/top");
+ const html=await res.text();
+ const parser=new DOMParser();
+ const doc=parser.parseFromString(html,"text/html");
+ const rows=[...doc.querySelectorAll(".common-table tbody tr")];
 
-  games=rows.slice(0,30).map(r=>{
-    const name=r.querySelector("td.game-name").innerText.trim();
-    return{
-      name:name,
-      img:`https://cdn.cloudflare.steamstatic.com/steam/apps/${Math.floor(Math.random()*100000)}/header.jpg`,
-      info:"Top Players This Month",
-      price:"Popular"
-    }
-  });
+ games=rows
+   .filter(r=>matchGenre(r.querySelector("td.game-name").innerText))
+   .slice(0,30)
+   .map(r=>{
+     const name=r.querySelector("td.game-name").innerText.trim();
+     return{
+       name:name,
+       img:"https://cdn.cloudflare.steamstatic.com/steam/apps/10/header.jpg",
+       info:"Popular This Month"
+     }
+   });
 }
 
-/* ---------- WHEEL ---------- */
+/* -------- WHEEL -------- */
 const canvas=document.getElementById("wheel");
 const ctx=canvas.getContext("2d");
 const R=300;
 
 function drawWheel(){
-  ctx.clearRect(0,0,600,600);
-  const slice=(2*Math.PI)/games.length;
+ ctx.clearRect(0,0,600,600);
+ const slice=(2*Math.PI)/games.length;
 
-  games.forEach((g,i)=>{
-    const start=i*slice+rotation;
-    const end=start+slice;
+ games.forEach((g,i)=>{
+   const start=i*slice+rotation;
+   const end=start+slice;
 
-    ctx.beginPath();
-    ctx.moveTo(R,R);
-    ctx.arc(R,R,R,start,end);
-    ctx.fillStyle=i%2?"#ffb703":"#7b61ff";
-    ctx.fill();
+   ctx.beginPath();
+   ctx.moveTo(R,R);
+   ctx.arc(R,R,R,start,end);
+   ctx.fillStyle=i%2?"#ffb703":"#7b61ff";
+   ctx.fill();
 
-    const img=new Image();
-    img.src=g.img;
-    img.onload=()=>{
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(R,R);
-      ctx.arc(R,R,R,start,end);
-      ctx.clip();
-      ctx.translate(R,R);
-      ctx.rotate(start+slice/2);
-      ctx.drawImage(img,80,-60,220,120);
-      ctx.restore();
-    };
-  });
+   const img=new Image();
+   img.src=g.img;
+   img.onload=()=>{
+     ctx.save();
+     ctx.beginPath();
+     ctx.moveTo(R,R);
+     ctx.arc(R,R,R,start,end);
+     ctx.clip();
+     ctx.translate(R,R);
+     ctx.rotate(start+slice/2);
+     ctx.drawImage(img,80,-60,220,120);
+     ctx.restore();
+   };
+ });
 }
 
 function ease(t){return 1-Math.pow(1-t,4)}
 
 function spin(){
-  if(games.length===0) return;
+ if(games.length===0) return;
+ const slice=(2*Math.PI)/games.length;
+ const index=Math.floor(Math.random()*games.length);
+ const target=6*Math.PI*2 - index*slice;
 
-  const slice=(2*Math.PI)/games.length;
-  const index=Math.floor(Math.random()*games.length);
-  const target=6*Math.PI*2 - index*slice;
+ const start=rotation;
+ const startTime=performance.now();
+ const duration=4500;
 
-  const start=rotation;
-  const startTime=performance.now();
-  const duration=4500;
-
-  function anim(now){
-    const t=Math.min((now-startTime)/duration,1);
-    rotation=start+(target-start)*ease(t);
-    drawWheel();
-    if(t<1) requestAnimationFrame(anim);
-    else showResult(games[index]);
-  }
-  requestAnimationFrame(anim);
+ function anim(now){
+   const t=Math.min((now-startTime)/duration,1);
+   rotation=start+(target-start)*ease(t);
+   drawWheel();
+   if(t<1) requestAnimationFrame(anim);
+   else showResult(games[index]);
+ }
+ requestAnimationFrame(anim);
 }
 
+/* -------- RESULT + STEAM API -------- */
 async function showResult(g){
-  const res = await fetch(`/api/steam?name=${encodeURIComponent(g.name)}`);
-  const steam = await res.json();
+ const res = await fetch(`/api/steam?name=${encodeURIComponent(g.name)}`);
+ const steam = await res.json();
 
-  document.getElementById("result").innerHTML=`
-    <div class="result">
-      <img src="${steam.img}">
-      <div>
-        <h2>${steam.name}</h2>
-        <p>${g.info}</p>
-        <a href="https://store.steampowered.com/app/${steam.appid}" target="_blank">
-          View on Steam
-        </a>
-      </div>
-    </div>
-  `;
+ document.getElementById("result").innerHTML=`
+   <div class="result">
+     <img src="${steam.img}">
+     <div>
+       <h2>${steam.name}</h2>
+       <p>${g.info}</p>
+       <a href="https://store.steampowered.com/app/${steam.appid}" target="_blank">
+         View on Steam
+       </a>
+     </div>
+   </div>
+ `;
 }
 
 loadGames();
