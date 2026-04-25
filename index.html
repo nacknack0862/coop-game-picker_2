@@ -2,122 +2,138 @@
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Co-op Game Picker</title>
+<title>Co-op Game Wheel</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box}
 body{
   margin:0;
   font-family:'Inter',sans-serif;
-  background:#0f1117;
+  background:radial-gradient(circle at top,#0d0f1a,#05060a);
   color:white;
   text-align:center;
+  overflow:hidden;
 }
-.container{
-  max-width:900px;
+
+h1{
+  margin-top:20px;
+  font-size:44px;
+  background:linear-gradient(45deg,#7b61ff,#ff4d6d);
+  -webkit-background-clip:text;
+  color:transparent;
+}
+
+#wrapper{
+  position:relative;
   margin:auto;
-  padding:30px 20px;
+  width:520px;
+  height:520px;
+  margin-top:30px;
 }
-h1{font-size:42px;margin-bottom:20px}
+
 canvas{
-  margin-top:20px;
+  border-radius:50%;
+  box-shadow:0 0 40px rgba(255,77,109,.5);
 }
+
+.pointer{
+  position:absolute;
+  top:-10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:0;
+  height:0;
+  border-left:18px solid transparent;
+  border-right:18px solid transparent;
+  border-bottom:40px solid #ff4d6d;
+  filter:drop-shadow(0 0 10px #ff4d6d);
+}
+
 button{
-  margin-top:20px;
-  padding:14px 24px;
-  font-size:18px;
-  font-weight:600;
+  margin-top:30px;
+  padding:16px 28px;
+  font-size:20px;
+  font-weight:700;
   border:none;
-  border-radius:12px;
+  border-radius:14px;
   cursor:pointer;
   background:linear-gradient(45deg,#ff4d6d,#ffb703);
   color:black;
 }
+
 .result{
   margin-top:25px;
-  font-size:24px;
+  font-size:26px;
   font-weight:800;
 }
 </style>
 </head>
 
 <body>
-<div class="container">
-  <h1>🎮 Co-op Game Wheel</h1>
 
-  <label>Minimum Players:
-    <input type="number" id="players" value="2" min="2" style="padding:8px;border-radius:8px;border:none;margin-left:10px;">
-  </label>
+<h1>🎮 Co-op Game Picker</h1>
 
-  <br/>
-  <canvas id="wheel" width="500" height="500"></canvas>
-  <br/>
-  <button onclick="spin()">🎡 Spin Wheel</button>
-
-  <div id="result" class="result"></div>
+<div id="wrapper">
+  <div class="pointer"></div>
+  <canvas id="wheel" width="520" height="520"></canvas>
 </div>
+
+<button onclick="spin()">🎡 SPIN THE WHEEL</button>
+<div id="result" class="result"></div>
 
 <script>
 const games = [
-  { name:"Overcooked 2", players:4 },
-  { name:"It Takes Two", players:2 },
-  { name:"Phasmophobia", players:4 },
-  { name:"Left 4 Dead 2", players:4 },
-  { name:"Terraria", players:8 },
-  { name:"Stardew Valley", players:4 }
+  "Overcooked 2",
+  "It Takes Two",
+  "Phasmophobia",
+  "Left 4 Dead 2",
+  "Terraria",
+  "Stardew Valley",
+  "Deep Rock Galactic",
+  "Raft"
 ];
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
-let currentRotation = 0;
-let wheelGames = [];
+const radius = canvas.width/2;
+let rotation = 0;
 
 function drawWheel(){
-  const radius = canvas.width/2;
-  const slice = (2*Math.PI)/wheelGames.length;
+  const slice = (2*Math.PI)/games.length;
 
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  wheelGames.forEach((g,i)=>{
+  for(let i=0;i<games.length;i++){
     const angle = i*slice;
     ctx.beginPath();
     ctx.moveTo(radius,radius);
     ctx.arc(radius,radius,radius,angle,angle+slice);
-    ctx.fillStyle = i%2 ? "#ffb703" : "#ff4d6d";
+    ctx.fillStyle = i%2? "#ffb703" : "#7b61ff";
     ctx.fill();
 
     ctx.save();
     ctx.translate(radius,radius);
     ctx.rotate(angle+slice/2);
     ctx.fillStyle="black";
-    ctx.font="bold 16px Inter";
-    ctx.fillText(g.name, 40, 5);
+    ctx.font="bold 18px Inter";
+    ctx.fillText(games[i], 60, 6);
     ctx.restore();
-  });
+  }
 }
 
 function spin(){
-  const min = parseInt(document.getElementById('players').value);
-  wheelGames = games.filter(g=>g.players>=min);
+  const slice = 360/games.length;
+  const index = Math.floor(Math.random()*games.length);
+  const degrees = 360*6 + (360 - index*slice);
 
-  if(wheelGames.length===0) return;
-
-  drawWheel();
-
-  const slice = 360/wheelGames.length;
-  const randomIndex = Math.floor(Math.random()*wheelGames.length);
-  const targetAngle = (360 - randomIndex*slice) + 1440;
-
-  canvas.style.transition="transform 4s cubic-bezier(.17,.67,.83,.67)";
-  canvas.style.transform=`rotate(${targetAngle}deg)`;
+  canvas.style.transition="transform 5s cubic-bezier(.17,.67,.83,.67)";
+  canvas.style.transform=`rotate(${degrees}deg)`;
 
   setTimeout(()=>{
-    const picked = wheelGames[randomIndex];
-    document.getElementById("result").innerText = "🎯 " + picked.name;
-  },4000);
+    document.getElementById("result").innerText = "🎯 " + games[index];
+  },5000);
 }
 
 drawWheel();
 </script>
+
 </body>
 </html>
