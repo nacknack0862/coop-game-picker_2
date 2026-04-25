@@ -47,7 +47,8 @@ let games=[];
 let rotation=0;
 
 const coopKeywords=[
-  "coop","co-op","multiplayer","together","friends","party","online"
+  "coop","co-op","multiplayer","party","friends",
+  "together","online","team","battle","survival"
 ];
 
 function looksCoop(name){
@@ -56,12 +57,18 @@ function looksCoop(name){
 }
 
 async function loadGames(){
-  const maxPrice=document.getElementById("price").value;
+  const maxPrice=parseInt(document.getElementById("price").value);
 
-  const res=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&upperPrice=${maxPrice}&pageSize=60`);
-  const data=await res.json();
+  // ดึงหลายหน้า + ไม่กรองก่อน
+  let pool=[];
+  for(let page=0; page<5; page++){
+    const res=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&upperPrice=${maxPrice}&pageSize=60&pageNumber=${page}`);
+    const data=await res.json();
+    pool=pool.concat(data);
+  }
 
-  games=data
+  // ค่อยกรอง coop ทีหลัง
+  games=pool
     .filter(g=>looksCoop(g.title))
     .map(g=>({
       name:g.title,
@@ -70,15 +77,17 @@ async function loadGames(){
       deal:g.dealID
     }));
 
-  if(games.length<6){
-    alert("เจอเกม co-op น้อย ลองเพิ่มช่วงราคา");
+  // ถ้ายังน้อย เอาทั้งหมดมาเลย (กันกรณีชื่อไม่ตรง)
+  if(games.length<8){
+    games=pool.slice(0,40).map(g=>({
+      name:g.title,
+      img:g.thumb,
+      price:g.salePrice,
+      deal:g.dealID
+    }));
   }
 
   drawWheel();
-}
-
-function reload(){
-  loadGames();
 }
 
 const canvas=document.getElementById("wheel");
@@ -107,7 +116,6 @@ function drawWheel(){
       ctx.moveTo(R,R);
       ctx.arc(R,R,R,start,end);
       ctx.clip();
-
       ctx.translate(R,R);
       ctx.rotate(start+slice/2);
       ctx.drawImage(img,80,-60,220,120);
