@@ -6,10 +6,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 body{margin:0;background:#0b0f1a;color:#fff;font-family:Inter;text-align:center}
-.controls{margin-top:10px}
-select{padding:8px;border-radius:8px;margin:6px}
-canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:20px}
-button{margin:16px;padding:12px 24px;border:none;border-radius:10px;font-weight:800;cursor:pointer}
+h1{margin-top:16px}
+.controls{margin:10px}
+button{margin:6px;padding:10px 18px;border:none;border-radius:8px;font-weight:800;cursor:pointer}
+canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:10px}
 .result{max-width:900px;margin:20px auto;text-align:left;display:flex;gap:20px;background:#141a28;padding:20px;border-radius:16px}
 .result img{width:260px;border-radius:12px}
 </style>
@@ -19,21 +19,8 @@ button{margin:16px;padding:12px 24px;border:none;border-radius:10px;font-weight:
 <h1>🎮 Co-op / Multiplayer Game Wheel</h1>
 
 <div class="controls">
-  Players:
-  <select id="players">
-    <option value="2">2+</option>
-    <option value="3">3+</option>
-    <option value="4">4+</option>
-  </select>
-
-  Price:
-  <select id="price">
-    <option value="300">≤ 300฿</option>
-    <option value="600">≤ 600฿</option>
-    <option value="1000">≤ 1000฿</option>
-  </select>
-
-  <button onclick="reload()">Load Games</button>
+  <button onclick="setMode('deals')">Deals</button>
+  <button onclick="setMode('popular')">Popular This Month</button>
 </div>
 
 <canvas id="wheel" width="600" height="600"></canvas>
@@ -45,51 +32,56 @@ button{margin:16px;padding:12px 24px;border:none;border-radius:10px;font-weight:
 <script>
 let games=[];
 let rotation=0;
+let mode="deals";
 
-const coopKeywords=[
-  "coop","co-op","multiplayer","party","friends",
-  "together","online","team","battle","survival"
-];
-
-function looksCoop(name){
-  const n=name.toLowerCase();
-  return coopKeywords.some(k=>n.includes(k));
+function setMode(m){
+  mode=m;
+  loadGames();
 }
 
+/* ---------- LOAD GAMES ---------- */
 async function loadGames(){
-  const maxPrice=parseInt(document.getElementById("price").value);
-
-  // ดึงหลายหน้า + ไม่กรองก่อน
-  let pool=[];
-  for(let page=0; page<5; page++){
-    const res=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&upperPrice=${maxPrice}&pageSize=60&pageNumber=${page}`);
-    const data=await res.json();
-    pool=pool.concat(data);
-  }
-
-  // ค่อยกรอง coop ทีหลัง
-  games=pool
-    .filter(g=>looksCoop(g.title))
-    .map(g=>({
-      name:g.title,
-      img:g.thumb,
-      price:g.salePrice,
-      deal:g.dealID
-    }));
-
-  // ถ้ายังน้อย เอาทั้งหมดมาเลย (กันกรณีชื่อไม่ตรง)
-  if(games.length<8){
-    games=pool.slice(0,40).map(g=>({
-      name:g.title,
-      img:g.thumb,
-      price:g.salePrice,
-      deal:g.dealID
-    }));
-  }
-
+  if(mode==="deals") await loadDeals();
+  else await loadPopular();
   drawWheel();
 }
 
+/* Deals from CheapShark */
+async function loadDeals(){
+  let pool=[];
+  for(let p=0;p<4;p++){
+    const r=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&pageSize=60&pageNumber=${p}`);
+    pool=pool.concat(await r.json());
+  }
+
+  games=pool.slice(0,40).map(g=>({
+    name:g.title,
+    img:g.thumb,
+    info:"Steam Deal",
+    price:"$"+g.salePrice
+  }));
+}
+
+/* Popular from SteamCharts */
+async function loadPopular(){
+  const res=await fetch("https://steamcharts.com/top");
+  const html=await res.text();
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(html,"text/html");
+  const rows=[...doc.querySelectorAll(".common-table tbody tr")];
+
+  games=rows.slice(0,30).map(r=>{
+    const name=r.querySelector("td.game-name").innerText.trim();
+    return{
+      name:name,
+      img:`https://cdn.cloudflare.steamstatic.com/steam/apps/${Math.floor(Math.random()*100000)}/header.jpg`,
+      info:"Top Players This Month",
+      price:"Popular"
+    }
+  });
+}
+
+/* ---------- WHEEL ---------- */
 const canvas=document.getElementById("wheel");
 const ctx=canvas.getContext("2d");
 const R=300;
@@ -153,8 +145,8 @@ function showResult(g){
       <img src="${g.img}">
       <div>
         <h2>${g.name}</h2>
-        <p>Price: $${g.price}</p>
-        <p>Deal ID: ${g.deal}</p>
+        <p>${g.info}</p>
+        <p>${g.price}</p>
       </div>
     </div>
   `;
