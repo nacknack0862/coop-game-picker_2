@@ -6,36 +6,79 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 body{margin:0;background:#0b0f1a;color:#fff;font-family:Inter;text-align:center}
+.controls{margin-top:10px}
+select{padding:8px;border-radius:8px;margin:6px}
 canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:20px}
-button{margin:20px;padding:14px 26px;border-radius:10px;border:none;font-weight:800;cursor:pointer}
+button{margin:16px;padding:12px 24px;border:none;border-radius:10px;font-weight:800;cursor:pointer}
 .result{max-width:900px;margin:20px auto;text-align:left;display:flex;gap:20px;background:#141a28;padding:20px;border-radius:16px}
 .result img{width:260px;border-radius:12px}
 </style>
 </head>
 <body>
 
-<h1>🎮 Infinite Co-op Game Wheel</h1>
+<h1>🎮 Co-op / Multiplayer Game Wheel</h1>
+
+<div class="controls">
+  Players:
+  <select id="players">
+    <option value="2">2+</option>
+    <option value="3">3+</option>
+    <option value="4">4+</option>
+  </select>
+
+  Price:
+  <select id="price">
+    <option value="300">≤ 300฿</option>
+    <option value="600">≤ 600฿</option>
+    <option value="1000">≤ 1000฿</option>
+  </select>
+
+  <button onclick="reload()">Load Games</button>
+</div>
+
 <canvas id="wheel" width="600" height="600"></canvas>
 <br/>
 <button onclick="spin()">SPIN</button>
+
 <div id="result"></div>
 
 <script>
 let games=[];
 let rotation=0;
 
+const coopKeywords=[
+  "coop","co-op","multiplayer","together","friends","party","online"
+];
+
+function looksCoop(name){
+  const n=name.toLowerCase();
+  return coopKeywords.some(k=>n.includes(k));
+}
+
 async function loadGames(){
-  const res=await fetch("https://www.cheapshark.com/api/1.0/deals?storeID=1&upperPrice=1000&pageSize=40");
+  const maxPrice=document.getElementById("price").value;
+
+  const res=await fetch(`https://www.cheapshark.com/api/1.0/deals?storeID=1&upperPrice=${maxPrice}&pageSize=60`);
   const data=await res.json();
 
-  games=data.map(g=>({
-    name:g.title,
-    img:g.thumb,
-    price:g.salePrice,
-    deal:g.dealID
-  }));
+  games=data
+    .filter(g=>looksCoop(g.title))
+    .map(g=>({
+      name:g.title,
+      img:g.thumb,
+      price:g.salePrice,
+      deal:g.dealID
+    }));
+
+  if(games.length<6){
+    alert("เจอเกม co-op น้อย ลองเพิ่มช่วงราคา");
+  }
 
   drawWheel();
+}
+
+function reload(){
+  loadGames();
 }
 
 const canvas=document.getElementById("wheel");
@@ -43,8 +86,8 @@ const ctx=canvas.getContext("2d");
 const R=300;
 
 function drawWheel(){
-  const slice=(2*Math.PI)/games.length;
   ctx.clearRect(0,0,600,600);
+  const slice=(2*Math.PI)/games.length;
 
   games.forEach((g,i)=>{
     const start=i*slice+rotation;
@@ -76,6 +119,8 @@ function drawWheel(){
 function ease(t){return 1-Math.pow(1-t,4)}
 
 function spin(){
+  if(games.length===0) return;
+
   const slice=(2*Math.PI)/games.length;
   const index=Math.floor(Math.random()*games.length);
   const target=6*Math.PI*2 - index*slice;
