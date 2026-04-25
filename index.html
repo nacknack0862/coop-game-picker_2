@@ -2,216 +2,112 @@
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Co-op Game Picker</title>
+<title>Co-op Game Wheel</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:'Inter',sans-serif;
-  background:radial-gradient(circle at top,#0b0f1a,#05060a);
-  color:white;
-}
-
-/* LAYOUT */
-.layout{display:flex; gap:24px; padding:24px}
-.sidebar{
-  width:260px;
-  background:#111522;
-  border-radius:18px;
-  padding:20px;
-  box-shadow:0 0 40px rgba(0,0,0,.6);
-}
-.sidebar h2{margin:0 0 10px}
-.filter-btn{
-  display:block;width:100%;margin:6px 0;padding:10px;
-  border-radius:8px;border:1px solid #333;background:#1b2030;color:white;cursor:pointer
-}
-.filter-btn.active{background:#7b61ff}
-
-/* MAIN */
-.main{flex:1;text-align:center}
-
-#wheelWrap{
-  position:relative;
-  width:640px;height:640px;margin:auto;
-  perspective:1000px;
-}
-#wheel{
-  width:100%;height:100%;
-  border-radius:50%;
-  position:absolute;
-  transform-style:preserve-3d;
-  box-shadow:0 0 80px #7b61ff;
-}
-.slice{
-  position:absolute;
-  width:50%;height:50%;
-  top:50%;left:50%;
-  transform-origin:0% 0%;
-  overflow:hidden;
-}
-.slice img{
-  width:100%;height:100%;object-fit:cover;
-  filter:brightness(.85);
-}
-.pointer{
-  position:absolute;top:-10px;left:50%;
-  transform:translateX(-50%);
-  width:0;height:0;
-  border-left:22px solid transparent;
-  border-right:22px solid transparent;
-  border-bottom:50px solid #ff4d6d;
-  z-index:10;
-  filter:drop-shadow(0 0 12px #ff4d6d);
-}
-
-/* RESULT CARD */
-.result{
-  margin-top:30px;
-  background:#141a28;
-  border-radius:18px;
-  padding:20px;
-  display:flex;
-  gap:20px;
-  align-items:center;
-  box-shadow:0 0 40px rgba(0,0,0,.6);
-}
+body{margin:0;background:#0b0f1a;color:#fff;font-family:Inter;text-align:center}
+canvas{border-radius:50%;box-shadow:0 0 60px #7b61ff;margin-top:20px}
+button{margin:20px;padding:14px 26px;border-radius:10px;border:none;font-weight:800;cursor:pointer}
+.result{max-width:900px;margin:20px auto;text-align:left;display:flex;gap:20px;background:#141a28;padding:20px;border-radius:16px}
 .result img{width:260px;border-radius:12px}
-.result-info{text-align:left}
-.tag{
-  display:inline-block;padding:6px 10px;background:#7b61ff;
-  border-radius:6px;font-size:12px;margin-right:6px
-}
-.spinBtn{
-  margin-top:20px;padding:16px 28px;font-size:22px;
-  border:none;border-radius:14px;
-  background:linear-gradient(45deg,#ff4d6d,#ffb703);
-  cursor:pointer;font-weight:800
-}
 </style>
 </head>
 <body>
 
-<div class="layout">
-
-  <div class="sidebar">
-    <h2>Filters</h2>
-    <b>Players</b>
-    <button class="filter-btn active" onclick="setPlayers(2,this)">2+</button>
-    <button class="filter-btn" onclick="setPlayers(3,this)">3+</button>
-    <button class="filter-btn" onclick="setPlayers(4,this)">4+</button>
-
-    <br/><br/>
-    <b>Genre</b>
-    <button class="filter-btn active" onclick="setGenre('All',this)">All</button>
-    <button class="filter-btn" onclick="setGenre('Horror',this)">Horror</button>
-    <button class="filter-btn" onclick="setGenre('Adventure',this)">Adventure</button>
-    <button class="filter-btn" onclick="setGenre('Survival',this)">Survival</button>
-    <button class="filter-btn" onclick="setGenre('Party',this)">Party</button>
-  </div>
-
-  <div class="main">
-    <h1>🎮 Co-op Game Picker</h1>
-
-    <div id="wheelWrap">
-      <div class="pointer"></div>
-      <div id="wheel"></div>
-    </div>
-
-    <button class="spinBtn" onclick="spin()">SPIN THE WHEEL</button>
-
-    <div id="result"></div>
-  </div>
-
-</div>
+<h1>🎮 Infinite Co-op Game Wheel</h1>
+<canvas id="wheel" width="600" height="600"></canvas>
+<br/>
+<button onclick="spin()">SPIN</button>
+<div id="result"></div>
 
 <script>
-let minPlayers=2;
-let selectedGenre="All";
+let games=[];
 let rotation=0;
 
-const games=[
-{name:"Overcooked 2",players:4,genre:"Party",
-img:"https://cdn.cloudflare.steamstatic.com/steam/apps/728880/header.jpg",price:450},
-{name:"It Takes Two",players:2,genre:"Adventure",
-img:"https://cdn.cloudflare.steamstatic.com/steam/apps/1426210/header.jpg",price:990},
-{name:"Phasmophobia",players:4,genre:"Horror",
-img:"https://cdn.cloudflare.steamstatic.com/steam/apps/739630/header.jpg",price:279},
-{name:"Left 4 Dead 2",players:4,genre:"Horror",
-img:"https://cdn.cloudflare.steamstatic.com/steam/apps/550/header.jpg",price:199},
-{name:"Terraria",players:8,genre:"Survival",
-img:"https://cdn.cloudflare.steamstatic.com/steam/apps/105600/header.jpg",price:199},
-{name:"Stardew Valley",players:4,genre:"Adventure",
-img:"https://cdn.cloudflare.steamstatic.com/steam/apps/413150/header.jpg",price:315}
-];
+async function loadGames(){
+  const res=await fetch("https://www.cheapshark.com/api/1.0/deals?storeID=1&upperPrice=1000&pageSize=40");
+  const data=await res.json();
 
-function filtered(){
-  return games.filter(g=>
-    g.players>=minPlayers &&
-    (selectedGenre==="All"||g.genre===selectedGenre)
-  );
+  games=data.map(g=>({
+    name:g.title,
+    img:g.thumb,
+    price:g.salePrice,
+    deal:g.dealID
+  }));
+
+  drawWheel();
 }
 
-function buildWheel(){
-  const list=filtered();
-  const wheel=document.getElementById("wheel");
-  wheel.innerHTML="";
-  const slice=360/list.length;
+const canvas=document.getElementById("wheel");
+const ctx=canvas.getContext("2d");
+const R=300;
 
-  list.forEach((g,i)=>{
-    const div=document.createElement("div");
-    div.className="slice";
-    div.style.transform=`rotate(${i*slice}deg) skewY(${90-slice}deg)`;
-    div.innerHTML=`<img src="${g.img}">`;
-    wheel.appendChild(div);
+function drawWheel(){
+  const slice=(2*Math.PI)/games.length;
+  ctx.clearRect(0,0,600,600);
+
+  games.forEach((g,i)=>{
+    const start=i*slice+rotation;
+    const end=start+slice;
+
+    ctx.beginPath();
+    ctx.moveTo(R,R);
+    ctx.arc(R,R,R,start,end);
+    ctx.fillStyle=i%2?"#ffb703":"#7b61ff";
+    ctx.fill();
+
+    const img=new Image();
+    img.src=g.img;
+    img.onload=()=>{
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(R,R);
+      ctx.arc(R,R,R,start,end);
+      ctx.clip();
+
+      ctx.translate(R,R);
+      ctx.rotate(start+slice/2);
+      ctx.drawImage(img,80,-60,220,120);
+      ctx.restore();
+    };
   });
 }
 
+function ease(t){return 1-Math.pow(1-t,4)}
+
 function spin(){
-  const list=filtered();
-  if(list.length===0) return;
+  const slice=(2*Math.PI)/games.length;
+  const index=Math.floor(Math.random()*games.length);
+  const target=6*Math.PI*2 - index*slice;
 
-  const index=Math.floor(Math.random()*list.length);
-  const slice=360/list.length;
-  rotation+=360*6 + (360 - index*slice);
+  const start=rotation;
+  const startTime=performance.now();
+  const duration=4500;
 
-  const wheel=document.getElementById("wheel");
-  wheel.style.transition="transform 5s cubic-bezier(.17,.67,.83,.67)";
-  wheel.style.transform=`rotate(${rotation}deg)`;
-
-  setTimeout(()=>showResult(list[index]),5000);
+  function anim(now){
+    const t=Math.min((now-startTime)/duration,1);
+    rotation=start+(target-start)*ease(t);
+    drawWheel();
+    if(t<1) requestAnimationFrame(anim);
+    else showResult(games[index]);
+  }
+  requestAnimationFrame(anim);
 }
 
 function showResult(g){
   document.getElementById("result").innerHTML=`
     <div class="result">
       <img src="${g.img}">
-      <div class="result-info">
+      <div>
         <h2>${g.name}</h2>
-        <div class="tag">${g.genre}</div>
-        <div class="tag">${g.players} Players</div>
-        <div class="tag">${g.price}฿</div>
+        <p>Price: $${g.price}</p>
+        <p>Deal ID: ${g.deal}</p>
       </div>
     </div>
   `;
 }
 
-function setPlayers(n,el){
-  minPlayers=n;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  buildWheel();
-}
-
-function setGenre(g,el){
-  selectedGenre=g;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  buildWheel();
-}
-
-buildWheel();
+loadGames();
 </script>
 
 </body>
